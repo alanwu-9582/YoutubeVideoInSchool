@@ -13,7 +13,7 @@
 5. 執行程式
 
 ### 線上環境
-1. 複製
+1. 複製 https://github.com/alanwu-9582/YoutubeVideoInSchool.git
 2. 前往 [Replit](https://replit.com/~)
 3. 建立一個新的 repl 
 4. 點擊 **Import from GitHub**
