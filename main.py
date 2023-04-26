@@ -1,42 +1,68 @@
 from pytube import YouTube, Search
-import threading
+import yt_dlp
 
-PATH = ".\\Videos"
+PATH = ".\\Media\\" + "%(title)s.%(ext)s"
+
+YDL_OPTIONS_AUDIO = {
+  "format": "bestaudio", 
+  "noplaylist": "True",
+  "outtmpl": PATH
+}
+
+YDL_OPTIONS_VIDEO = {
+    'format': 'best',
+    'forceurl': True,
+    'quiet': False,
+}
 
 def download_video(youtube, error_times: int):
     try:
-        title = youtube.title.replace("/", "")
-        youtube.streams.get_highest_resolution().download(output_path=PATH, filename=f"{title}.mp4")
+        with yt_dlp.YoutubeDL(YDL_OPTIONS_AUDIO) as ydl:
+          ydl.download(youtube.watch_url)
+          
         print("完成!")
         print("===========")
-    except Exception as e:
+    except Exception as exception:
         error_times += 1
-        if error_times <= 3:
-            retry = input(f"錯誤: {e}\n是否重試一次 ? (Y/N): ")
-            if retry in ["是", "Y", "y", "1"]:
-                download_video(youtube, error_times)
-        
+        if error_times <= 5:
+            print(f"正在重試..({error_times}/5)")
+            download_video(youtube, error_times)
+
+        else:
+          print(f"下載失敗.. \n錯誤: {exception}")
+
+def get_url(youtube, error_times: int):
+    try:
+        with yt_dlp.YoutubeDL(YDL_OPTIONS_VIDEO) as ydl:
+          video_info = ydl.extract_info(youtube.watch_url, download=False)
+          video_url = video_info['url']
+          return video_url
+    except Exception as exception:
+        error_times += 1
+        if error_times <= 5:
+            print(f"正在重試..({error_times}/5)")
+            get_url(youtube, error_times)
+    
+        else:
+          return f"連結取得失敗.. \n錯誤: {exception}"
 
 def download_or_not(youtube):
 
-    print(f"長度: {youtube.length} 秒")
+    print(f"連結: {youtube.watch_url}")
     print(f"名稱: {youtube.title}")
     print(f"作者: {youtube.author}")
+    youtube.bypass_age_gate()
     print("----------")
 
     is_download = input("是否要下載 ? (Y/N): ")
     if is_download in ["是", "Y", "y", "1"]:
-        print(f"開始下載...")
-        start_download = threading.Thread(target=download_video, args=(youtube, 0, ))
-        start_download.start()
-        start_download.join()
-        print("完成 !")
-        print("===========")
+        print("開始下載...")
+        download_video(youtube, 0)
     elif is_download in ["否", "N", "n", "0"]:
         print("----------")
-        print(f"<取消下載>")
+        print("<取消下載>")
         print("----------")
-        print(f"連結:\n\n{youtube.streams.get_highest_resolution().url}\n")
+        print(f"連結:\n\n{get_url(youtube, 0)}\n")
         print("===========")
     else:
         print("預期外的輸入")
@@ -44,7 +70,7 @@ def download_or_not(youtube):
 
 def search_videos(query):
     if query.startswith("https://www.youtube.com/"):
-        youtube = YouTube(query)
+        youtube = YouTube(query, use_oauth=True)
         download_or_not(youtube)
     else:
         search = Search(query)
@@ -56,7 +82,7 @@ def search_videos(query):
 
         select_index = int(input("請輸入搜尋結果的編號(取消: -1): ")) - 1
         while select_index not in range(len(results)) and select_index != -2:
-            select_index = int(input(f"預期外的內容，請重新輸入: ")) - 1
+            select_index = int(input("預期外的內容，請重新輸入: ")) - 1
 
         if select_index != -2:
             print("----------")
@@ -66,7 +92,7 @@ def search_videos(query):
 
         try:
             suggestions = search.completion_suggestions
-            print(f"其他推薦的搜尋:")
+            print("其他推薦的搜尋:")
             print("\n".join(suggestions))
             print("===========")
         except:
